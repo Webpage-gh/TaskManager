@@ -50,10 +50,11 @@ import com.patrykandpatrick.vico.core.common.component.TextComponent
 import com.patrykandpatrick.vico.core.common.shader.ShaderProvider
 import com.rk.components.SettingsToggle
 import com.rk.components.rememberMarker
+import com.rk.taskmanager.SystemViewModel
+import androidx.compose.runtime.collectAsState
 import com.rk.taskmanager.MainActivity
 import com.rk.taskmanager.ProcessViewModel
 import com.rk.taskmanager.SettingsRoutes
-import com.rk.taskmanager.screens.selectedscreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.text.DecimalFormat
@@ -95,7 +96,7 @@ suspend fun updateCpuGraph(usage: Int) {
         cpuYValues.removeFirst()
         cpuYValues.addLast(cpuUsage)
 
-        if (selectedscreen.intValue == 0 && MainActivity.instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
+        if (MainActivity.instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
             CpuModelProducer.runTransaction {
                 lineSeries {
                     series(x = xValues, y = cpuYValues.toList())
@@ -107,7 +108,7 @@ suspend fun updateCpuGraph(usage: Int) {
 }
 
 @Composable
-fun CPU(modifier: Modifier = Modifier,viewModel: ProcessViewModel) {
+fun CPU(modifier: Modifier = Modifier, viewModel: ProcessViewModel, systemViewModel: SystemViewModel) {
     val lineColor = MaterialTheme.colorScheme.primary
 
     LaunchedEffect(Unit) {
@@ -120,42 +121,9 @@ fun CPU(modifier: Modifier = Modifier,viewModel: ProcessViewModel) {
         }
     }
 
-    // Real-time data that updates periodically
-    var temperature by remember { mutableStateOf<String>("N/A") }
-    var uptime by remember { mutableStateOf("") }
-
-    var cpuInfo by remember { mutableStateOf<CpuInfoReader.CpuInfo?>(null) }
-
-    // Update real-time data every 2 seconds
-    LaunchedEffect(Unit) {
-        // 【关键修复】：将无限循环放入 IO 线程池，彻底解放主线程
-        withContext(Dispatchers.IO) {
-            while (isActive) {
-                send_daemon_messages.emit("CTEMP_PING")
-                val newUptime = CpuInfoReader.getUptimeFormatted()
-                val newCpuInfo = CpuInfoReader.read() // 耗时文件读取在后台完成
-
-                withContext(Dispatchers.Main) { // 带着结果切回主线程更新 UI
-                    uptime = newUptime
-                    cpuInfo = newCpuInfo
-                }
-                delay(2000)
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        launch(Dispatchers.IO) {
-            daemon_messages.collect { message ->
-                if (message.startsWith("CTEMP:")){
-                    val temp = message.removePrefix("CTEMP:").toInt()
-                     if (temp > 0){
-                         temperature = temp.toString()
-                     }
-                }
-            }
-        }
-    }
+    val temperature by systemViewModel.temperature.collectAsState()
+    val uptime by systemViewModel.uptime.collectAsState()
+    val cpuInfo by systemViewModel.cpuInfo.collectAsState()
 
 
     Column(modifier) {
@@ -200,18 +168,7 @@ fun CPU(modifier: Modifier = Modifier,viewModel: ProcessViewModel) {
             animationSpec = null,
         )
 
-
-        SettingsToggle(
-            description = "CPU - ${
-                if (cpuUsage < 0) {
-                    "No Data"
-                } else {
-                    "$cpuUsage%"
-                }
-            }",
-            showSwitch = false,
-            default = false
-        )
+        CpuUsageToggle()
 
         Spacer(modifier = Modifier.padding(vertical = 4.dp))
 
@@ -327,6 +284,22 @@ fun CPU(modifier: Modifier = Modifier,viewModel: ProcessViewModel) {
 fun InfoCard(content: @Composable () -> Unit) {
     content()
 }
+
+@Composable
+private fun CpuUsageToggle() {
+    SettingsToggle(
+        description = "CPU - ${
+            if (cpuUsage < 0) {
+                "No Data"
+            } else {
+                "$cpuUsage%"
+            }
+        }",
+        showSwitch = false,
+        default = false
+    )
+}
+
 
 @Composable
 fun ClusterCard(cluster: CpuInfoReader.CpuCluster) {

@@ -42,12 +42,13 @@ import com.rk.taskmanager.R
 import com.rk.taskmanager.screens.cpu.CPU
 import com.rk.taskmanager.screens.gpu.GPU
 import com.rk.taskmanager.screens.gpu.GpuViewModel
+import com.rk.taskmanager.SystemViewModel
 import com.rk.taskmanager.screens.ram.RAM
 
 private val globalExpandedCards = mutableStateOf(setOf("CPU"))
 
 @Composable
-fun ResourceHostScreen(modifier: Modifier = Modifier, viewModel: ProcessViewModel, gpuViewModel: GpuViewModel) {
+fun ResourceHostScreen(modifier: Modifier = Modifier, viewModel: ProcessViewModel, gpuViewModel: GpuViewModel, systemViewModel: SystemViewModel) {
     var expandedCards by remember { globalExpandedCards }
 
     // 【修改点 1】：彻底移除了 BoxWithConstraints 和高度计算逻辑
@@ -68,7 +69,8 @@ fun ResourceHostScreen(modifier: Modifier = Modifier, viewModel: ProcessViewMode
             // 【修改点 2】：不再传入固定 height，仅仅给一点内边距，它会自动撑开到最完美的高度！
             CPU(
                 modifier = Modifier.padding(8.dp),
-                viewModel = viewModel
+                viewModel = viewModel,
+                systemViewModel = systemViewModel
             )
         }
 

@@ -52,7 +52,6 @@ import com.rk.taskmanager.screens.cpu.MarkerValueFormatter
 import com.rk.taskmanager.screens.cpu.RangeProvider
 import com.rk.taskmanager.screens.cpu.StartAxisValueFormatter
 import com.rk.taskmanager.screens.cpu.xValues
-import com.rk.taskmanager.screens.selectedscreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -73,10 +72,10 @@ suspend fun updateGpuGraph(usage: Int) {
         gpuYValues.removeFirst()
         gpuYValues.addLast(gpuUsage)
 
-        if (selectedscreen.intValue == 0 && MainActivity.instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
+        if (MainActivity.instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
             GpuModelProducer.runTransaction {
                 lineSeries {
-                    series(x = xValues, y = gpuYValues)
+                    series(x = xValues, y = gpuYValues.toList())
                 }
             }
         }
@@ -84,6 +83,20 @@ suspend fun updateGpuGraph(usage: Int) {
 
 }
 
+@Composable
+private fun GpuUsageToggle() {
+    SettingsToggle(
+        description = "GPU - ${
+            if (gpuUsage < 0) {
+                stringResource(R.string.no_data)
+            } else {
+                "$gpuUsage%"
+            }
+        }",
+        showSwitch = false,
+        default = false
+    )
+}
 
 
 
@@ -96,7 +109,7 @@ fun GPU(modifier: Modifier = Modifier,viewModel: GpuViewModel) {
         mutex.withLock {
             GpuModelProducer.runTransaction {
                 lineSeries {
-                    series(x = xValues, y = gpuYValues)
+                    series(x = xValues, y = gpuYValues.toList())
                 }
             }
         }
@@ -145,17 +158,7 @@ fun GPU(modifier: Modifier = Modifier,viewModel: GpuViewModel) {
         )
 
 
-        SettingsToggle(
-            description = "GPU - ${
-                if (gpuUsage < 0) {
-                    stringResource(R.string.no_data)
-                } else {
-                    "$gpuUsage%"
-                }
-            }",
-            showSwitch = false,
-            default = false
-        )
+        GpuUsageToggle()
 
         Spacer(modifier = Modifier.padding(vertical = 4.dp))
 

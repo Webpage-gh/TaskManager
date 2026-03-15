@@ -30,7 +30,6 @@ import com.rk.taskmanager.settings.SettingsScreen
 import com.rk.taskmanager.settings.SupportSettingsScreen
 import com.rk.taskmanager.settings.Themes
 import com.rk.taskmanager.screens.procByPid
-import com.rk.taskmanager.screens.selectedscreen
 import com.rk.taskmanager.screens.cpu.updateCpuGraph
 import com.rk.taskmanager.screens.gpu.GpuViewModel
 import com.rk.taskmanager.screens.gpu.updateGpuGraph
@@ -55,6 +54,7 @@ class MainActivity : ComponentActivity() {
 
     val viewModel: ProcessViewModel by viewModels()
     val gpuViewModel: GpuViewModel by viewModels()
+    val systemViewModel: SystemViewModel by viewModels()
 
     companion object {
 
@@ -142,7 +142,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-                val delayMs = if (selectedscreen.intValue == 0 && instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
+                val delayMs = if (instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
                     Settings.updateFrequency.toLong()
                 } else {
                     Settings.updateFrequency.toLong() * 2
@@ -169,7 +169,7 @@ class MainActivity : ComponentActivity() {
                         popExitTransition = { NavigationAnimationTransitions.popExitTransition },
                     ) {
                         composable(SettingsRoutes.Home.route) {
-                            MainScreen(navController = navController, viewModel = viewModel, gpuViewModel = gpuViewModel)
+                            MainScreen(navController = navController, viewModel = viewModel, gpuViewModel = gpuViewModel, systemViewModel = systemViewModel)
                         }
 
                         composable(SettingsRoutes.SelectWorkingMode.route) {

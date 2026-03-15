@@ -41,14 +41,14 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.rk.taskmanager.ProcessViewModel
 import com.rk.taskmanager.R
+import kotlinx.coroutines.launch
 import com.rk.taskmanager.screens.Filter
 import com.rk.taskmanager.screens.ProcessItem
 import com.rk.taskmanager.screens.Sort
-import com.rk.taskmanager.screens.showFilter
-import com.rk.taskmanager.screens.showSort
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -56,6 +56,8 @@ fun ProcessSearchBar(
     modifier: Modifier = Modifier,
     viewModel: ProcessViewModel,
     navController: NavController,
+    onShowFilter: () -> Unit,
+    onShowSort: () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val animatedPadding by animateDpAsState(
@@ -92,7 +94,6 @@ fun ProcessSearchBar(
                         var showMoreMenu by remember { mutableStateOf(false) }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = {
-                                //showFilter.value = true
                                 showMoreMenu = true
                             }) {
                                 Icon(imageVector = Icons.Outlined.MoreVert, null)
@@ -106,7 +107,7 @@ fun ProcessSearchBar(
                                 Text(stringResource(R.string.filters))
                             }, onClick = {
                                 showMoreMenu = false
-                                showFilter.value = true
+                                onShowFilter()
                             }, leadingIcon = {
                                 Icon(imageVector = Filter, null)
                             })
@@ -115,7 +116,7 @@ fun ProcessSearchBar(
                                 Text(stringResource(R.string.sort))
                             }, onClick = {
                                 showMoreMenu = false
-                                showSort.value = true
+                                onShowSort()
                             }, leadingIcon = {
                                 Icon(imageVector = Sort, null)
                             })
@@ -164,7 +165,16 @@ fun ProcessSearchBar(
                         modifier = Modifier,
                         uiProc = proc,
                         navController = navController,
-                        viewModel
+                        onKillClicked = { target -> 
+                            // In search bar we don't have direct access to the parent's dialog state
+                            // So we trigger the viewmodel directly for simplicity in the search overlay
+                            viewModel.viewModelScope.launch {
+                                target.killing.value = true
+                                target.killed.value = com.rk.taskmanager.screens.killProc(target.proc)
+                                kotlinx.coroutines.delay(300)
+                                target.killing.value = false
+                            }
+                        }
                     )
                 }
             }

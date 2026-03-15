@@ -22,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +42,7 @@ import com.rk.taskmanager.ProcessViewModel
 import com.rk.taskmanager.R
 import com.rk.taskmanager.SettingsRoutes
 import com.rk.taskmanager.components.ProcessSearchBar
+import com.rk.taskmanager.SystemViewModel
 import com.rk.taskmanager.screens.gpu.GpuViewModel
 import com.rk.taskmanager.settings.Settings
 import com.rk.taskmanager.settings.SupportDialog
@@ -49,27 +51,30 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-var selectedscreen = mutableIntStateOf(0)
-var showFilter = mutableStateOf(false)
-var showSort = mutableStateOf(false)
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, navController: NavController, viewModel: ProcessViewModel,gpuViewModel: GpuViewModel) {
+fun MainScreen(modifier: Modifier = Modifier, navController: NavController, viewModel: ProcessViewModel,gpuViewModel: GpuViewModel, systemViewModel: SystemViewModel) {
+
+    var selectedScreen by rememberSaveable { mutableIntStateOf(0) }
+    var showFilter by rememberSaveable { mutableStateOf(false) }
+    var showSort by rememberSaveable { mutableStateOf(false) }
+
     if (isConnected) {
         Scaffold(
             modifier = modifier.fillMaxSize(),
             topBar = {
-                if (selectedscreen.intValue == 0){
+                if (selectedScreen == 0){
                     Column {
                         TopAppBar(
                             title = { Text(stringResource(strings.app_name)) },
                             actions = {
-                                if (selectedscreen.intValue == 1) {
+                                if (selectedScreen == 1) {
                                     IconButton(
                                         modifier = Modifier.padding(8.dp),
                                         onClick = {
-                                            showFilter.value = !showFilter.value
+                                            showFilter = !showFilter
                                         }) {
                                         Icon(
                                             imageVector = Filter,
@@ -93,19 +98,24 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavController, view
                         HorizontalDivider()
                     }
                 }else{
-                    ProcessSearchBar(viewModel = viewModel, navController = navController)
+                    ProcessSearchBar(
+                        viewModel = viewModel, 
+                        navController = navController,
+                        onShowFilter = { showFilter = true },
+                        onShowSort = { showSort = true }
+                    )
                 }
 
             },
             bottomBar = {
                 Column {
-                    if (selectedscreen.intValue == 0){
+                    if (selectedScreen == 0){
                         HorizontalDivider()
                     }
                     NavigationBar {
                         NavigationBarItem(
-                            selected = selectedscreen.intValue == 0, onClick = {
-                                selectedscreen.intValue = 0
+                            selected = selectedScreen == 0, onClick = {
+                                selectedScreen = 0
                             },
                             icon = {
                                 Icon(
@@ -117,9 +127,9 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavController, view
                         )
 
                         NavigationBarItem(
-                            selected = selectedscreen.intValue == 1,
+                            selected = selectedScreen == 1,
                             onClick = {
-                                selectedscreen.intValue = 1
+                                selectedScreen = 1
                             },
                             icon = {
                                 Icon(
@@ -140,13 +150,25 @@ fun MainScreen(modifier: Modifier = Modifier, navController: NavController, view
                     viewModel.refreshProcessesAuto()
                 }
 
-                when (selectedscreen.intValue) {
+                when (selectedScreen) {
                     0 -> {
-                        ResourceHostScreen(viewModel = viewModel,modifier = Modifier.fillMaxSize(), gpuViewModel = gpuViewModel)
+                        ResourceHostScreen(
+                            viewModel = viewModel,
+                            modifier = Modifier.fillMaxSize(), 
+                            gpuViewModel = gpuViewModel,
+                            systemViewModel = systemViewModel
+                        )
                     }
 
                     1 -> {
-                        Processes(viewModel = viewModel, navController = navController)
+                        Processes(
+                            viewModel = viewModel, 
+                            navController = navController,
+                            showFilter = showFilter,
+                            onDismissFilter = { showFilter = false },
+                            showSort = showSort,
+                            onDismissSort = { showSort = false }
+                        )
                     }
                 }
             }

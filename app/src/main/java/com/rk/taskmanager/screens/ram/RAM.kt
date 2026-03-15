@@ -45,7 +45,6 @@ import com.rk.taskmanager.screens.cpu.MarkerValueFormatter
 import com.rk.taskmanager.screens.cpu.RangeProvider
 import com.rk.taskmanager.screens.cpu.StartAxisValueFormatter
 import com.rk.taskmanager.screens.cpu.xValues
-import com.rk.taskmanager.screens.selectedscreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -110,7 +109,7 @@ suspend fun updateRamAndSwapGraph(usagePercent: Int, usageBytes: Long, totalByte
 
 
         // Update chart model with both lines
-        if (selectedscreen.intValue == 0 && MainActivity.instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
+        if (MainActivity.instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
             RamModelProducer.runTransaction {
                 lineSeries {
                     series(x = xValues, y = ramYValues.toList())
@@ -124,13 +123,27 @@ suspend fun updateRamAndSwapGraph(usagePercent: Int, usageBytes: Long, totalByte
 
 
 @Composable
+private fun RamAndSwapUsageToggle() {
+    SettingsToggle(
+        description = "RAM: ${formatRamMB(usedRam)}/${formatRamGB(totalRam)} ($RamUsage%)\nSWAP: ${
+            formatRamMB(
+                usedSwap
+            )
+        }/${formatRamGB(totalSwap)} ($SwapUsage%)",
+        showSwitch = false,
+        default = false
+    )
+}
+
+
+@Composable
 fun RAM(modifier: Modifier = Modifier,viewModel: ProcessViewModel) {
     LaunchedEffect(Unit) {
         mutex.withLock {
             RamModelProducer.runTransaction {
                 lineSeries {
-                    series(x = xValues, y = ramYValues) // RAM line
-                    series(x = xValues, y = swapYValues) // SWAP line
+                    series(x = xValues, y = ramYValues.toList()) // RAM line
+                    series(x = xValues, y = swapYValues.toList()) // SWAP line
                 }
             }
         }
@@ -193,15 +206,7 @@ fun RAM(modifier: Modifier = Modifier,viewModel: ProcessViewModel) {
             animationSpec = null
         )
 
-        SettingsToggle(
-            description = "RAM: ${formatRamMB(usedRam)}/${formatRamGB(totalRam)} ($RamUsage%)\nSWAP: ${
-                formatRamMB(
-                    usedSwap
-                )
-            }/${formatRamGB(totalSwap)} ($SwapUsage%)",
-            showSwitch = false,
-            default = false
-        )
+        RamAndSwapUsageToggle()
 
         Spacer(modifier = Modifier.padding(vertical = 8.dp))
 
