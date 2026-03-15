@@ -1,0 +1,10 @@
+<b>TaskManager</b> 是一款受 Gnome 系统监视器启发的 Android 工具。它需要 <a href='https://shizuku.rikka.app/'>Shizuku</a> 才能工作。
+
+<b>功能：</b>
+
+* 监控 CPU 使用情况
+* 监控内存使用情况
+* 监控正在运行的 Linux 进程
+* 列出进程信息（例如内存使用情况、优先级等）
+* 杀死正在运行的进程（需要 Shizuku 以 root 身份启动）
+* 更改进程优先级（需要 Shizuku 以 root 身份启动）
