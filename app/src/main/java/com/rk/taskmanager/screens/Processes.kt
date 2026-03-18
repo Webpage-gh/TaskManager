@@ -28,16 +28,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,7 +48,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.rk.components.SettingsToggle
 import com.rk.components.XedDialog
@@ -65,23 +60,25 @@ import com.rk.taskmanager.SettingsRoutes
 import com.rk.taskmanager.settings.Settings
 import com.rk.taskmanager.settings.pullToRefresh_procs
 import com.rk.taskmanager.strings
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Processes(
     modifier: Modifier = Modifier,
     viewModel: ProcessViewModel,
-    navController: NavController
+    navController: NavController,
+    showFilter: Boolean,
+    onDismissFilter: () -> Unit,
+    showSort: Boolean,
+    onDismissSort: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    var showKillDialog by remember { mutableStateOf<ProcessUiModel?>(null) }
 
-    if (showFilter.value) {
-        XedDialog(onDismissRequest = { showFilter.value = false }) {
-
+    if (showFilter) {
+        XedDialog(onDismissRequest = onDismissFilter) {
             val showUserApps by viewModel.showUserApps.collectAsState()
             val showSystemApps by viewModel.showSystemApps.collectAsState()
             val showLinuxProcess by viewModel.showLinuxProcess.collectAsState()
@@ -95,7 +92,8 @@ fun Processes(
                     default = showUserApps,
                     isEnabled = !(showUserApps && !showSystemApps && !showLinuxProcess),
                     sideEffect = { newValue ->
-                        if (!newValue && !showSystemApps && !showLinuxProcess) return@SettingsToggle
+                        if (!newValue && !showSystemApps && !showLinuxProcess)
+                            return@SettingsToggle
                         scope.launch {
                             Settings.showUserApps = newValue
                             viewModel.setShowUserApps(newValue)
@@ -110,7 +108,8 @@ fun Processes(
                     default = showSystemApps,
                     isEnabled = !(showSystemApps && !showUserApps && !showLinuxProcess),
                     sideEffect = { newValue ->
-                        if (!newValue && !showUserApps && !showLinuxProcess) return@SettingsToggle
+                        if (!newValue && !showUserApps && !showLinuxProcess)
+                            return@SettingsToggle
                         scope.launch {
                             Settings.showSystemApps = newValue
                             viewModel.setShowSystemApps(newValue)
@@ -134,107 +133,108 @@ fun Processes(
                 )
             }
         }
-
     }
 
-
-
-    if (showSort.value) {
-        XedDialog(onDismissRequest = { showSort.value = false }) {
-
+    if (showSort) {
+        XedDialog(onDismissRequest = onDismissSort) {
             val sortBy by viewModel.sortBy.collectAsState()
 
             DividerColumn {
-                SettingsToggle(default = false, showSwitch = false, startWidget = {
-                    RadioButton(selected = sortBy == ProcessViewModel.Sortby.Ram.id, onClick = {
-                        viewModel.setSortBy(ProcessViewModel.Sortby.Ram)
-                    })
-                }, label = stringResource(R.string.sort_by_ram), sideEffect = {
-                    viewModel.setSortBy(ProcessViewModel.Sortby.Ram)
-                })
+                SettingsToggle(
+                    default = false,
+                    showSwitch = false,
+                    startWidget = {
+                        RadioButton(
+                            selected = sortBy == ProcessViewModel.Sortby.Ram.id,
+                            onClick = { viewModel.setSortBy(ProcessViewModel.Sortby.Ram) }
+                        )
+                    },
+                    label = "Sort by RAM",
+                    sideEffect = { viewModel.setSortBy(ProcessViewModel.Sortby.Ram) }
+                )
 
-                SettingsToggle(default = false, showSwitch = false, startWidget = {
-                    RadioButton(selected = sortBy == ProcessViewModel.Sortby.Cpu.id, onClick = {
-                        viewModel.setSortBy(ProcessViewModel.Sortby.Cpu)
-                    })
-                }, label = stringResource(R.string.sort_by_cpu), sideEffect = {
-                    viewModel.setSortBy(ProcessViewModel.Sortby.Cpu)
-                })
+                SettingsToggle(
+                    default = false,
+                    showSwitch = false,
+                    startWidget = {
+                        RadioButton(
+                            selected = sortBy == ProcessViewModel.Sortby.Cpu.id,
+                            onClick = { viewModel.setSortBy(ProcessViewModel.Sortby.Cpu) }
+                        )
+                    },
+                    label = "Sort by CPU",
+                    sideEffect = { viewModel.setSortBy(ProcessViewModel.Sortby.Cpu) }
+                )
 
-                SettingsToggle(default = false, showSwitch = false, startWidget = {
-                    RadioButton(selected = sortBy == ProcessViewModel.Sortby.A_z.id, onClick = {
-                        viewModel.setSortBy(ProcessViewModel.Sortby.A_z)
-                    })
-                }, label = stringResource(R.string.sort_by_name_a_z), sideEffect = {
-                    viewModel.setSortBy(ProcessViewModel.Sortby.A_z)
-                })
-
-
-
+                SettingsToggle(
+                    default = false,
+                    showSwitch = false,
+                    startWidget = {
+                        RadioButton(
+                            selected = sortBy == ProcessViewModel.Sortby.A_z.id,
+                            onClick = { viewModel.setSortBy(ProcessViewModel.Sortby.A_z) }
+                        )
+                    },
+                    label = "Sort by Name (A-z)",
+                    sideEffect = { viewModel.setSortBy(ProcessViewModel.Sortby.A_z) }
+                )
             }
         }
-
     }
 
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        val content =
+            @Composable
+            {
+                val listState = rememberLazyListState()
 
-        val content = @Composable {
-            val listState = rememberLazyListState()
+                val filteredProcesses by viewModel.filteredProcesses.collectAsState()
 
-            val filteredProcesses by viewModel.filteredProcesses.collectAsState()
+                if (filteredProcesses.isNotEmpty()) {
 
-            if (filteredProcesses.isNotEmpty()) {
+                    LazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
+                        items(filteredProcesses, key = { it.proc.pid }) { uiProc ->
+                            ProcessItem(
+                                modifier,
+                                uiProc,
+                                navController = navController,
+                                onKillClicked = { target -> showKillDialog = target }
+                            )
+                        }
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    state = listState
-                ) {
-
-                    items(filteredProcesses, key = { it.proc.pid }) { uiProc ->
-                        ProcessItem(modifier, uiProc, navController = navController, viewModel)
+                        item { Spacer(modifier = Modifier.padding(bottom = 32.dp)) }
                     }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        val messages =
+                            listOf(
+                                "¯\\_(ツ)_/¯",
+                                "(¬_¬ )",
+                                "(╯°□°）╯︵ ┻━┻",
+                                "(>_<)",
+                                "(ಠ_ಠ)",
+                                stringResource(R.string.emoji_no_data),
+                                "(o_O)"
+                            )
 
-                    item {
-                        Spacer(modifier = Modifier.padding(bottom = 32.dp))
-                    }
-                }
-            } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    val messages = listOf(
-                        "¯\\_(ツ)_/¯",
-                        "(¬_¬ )",
-                        "(╯°□°）╯︵ ┻━┻",
-                        "(>_<)",
-                        "(ಠ_ಠ)",
-                        stringResource(R.string.emoji_no_data),
-                        "(o_O)"
-                    )
+                        val message = rememberSaveable { messages.random() }
+                        Text(message)
 
-                    val message = rememberSaveable { messages.random() }
-                    Text(message)
+                        Spacer(modifier = Modifier.padding(vertical = 16.dp))
 
-                    Spacer(modifier = Modifier.padding(vertical = 16.dp))
-
-                    Button(onClick = {
-                        viewModel.refreshProcessesManual()
-                    }) {
-                        Text(stringResource(R.string.refresh))
+                        Button(onClick = { viewModel.refreshProcessesManual() }) {
+                            Text(stringResource(R.string.refresh))
+                        }
                     }
                 }
-
             }
-        }
 
-        if (pullToRefresh_procs){
-            PullToRefreshBox(isRefreshing = viewModel.isLoading.value, onRefresh = {
-                viewModel.refreshProcessesManual()
-            }) {
-                content()
-            }
-        }else{
+        if (pullToRefresh_procs) {
+            PullToRefreshBox(
+                isRefreshing = viewModel.isLoading.value,
+                onRefresh = { viewModel.refreshProcessesManual() }
+            ) { content() }
+        } else {
             content()
         }
     }
@@ -247,37 +247,43 @@ fun ProcessItem(
     modifier: Modifier,
     uiProc: ProcessUiModel,
     navController: NavController,
-    viewModel: ProcessViewModel
+    onKillClicked: (ProcessUiModel) -> Unit
 ) {
-    var showKillDialog by remember { mutableStateOf<ProcessUiModel?>(null) }
 
     PreferenceTemplate(
-        modifier = modifier
-            .padding(8.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .combinedClickable(
-                indication = ripple(),
-                enabled = !uiProc.killed.value,
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = { navController.navigate(SettingsRoutes.ProcessInfo.createRoute(uiProc)) }
-            ),
-        contentModifier = Modifier
-            .fillMaxHeight()
-            .padding(vertical = 16.dp)
-            .padding(start = 16.dp),
+        modifier =
+            modifier
+                .padding(8.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .combinedClickable(
+                    indication = ripple(),
+                    enabled = !uiProc.killed.value,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = {
+                        navController.navigate(
+                            SettingsRoutes.ProcessInfo.createRoute(uiProc)
+                        )
+                    }
+                ),
+        contentModifier =
+            Modifier
+                .fillMaxHeight()
+                .padding(vertical = 16.dp)
+                .padding(start = 16.dp),
         enabled = !uiProc.killed.value,
         title = {
             Text(
                 fontWeight = FontWeight.Bold,
-                text = if (uiProc.name.length > textLimit) {
-                    uiProc.name.take(textLimit) + "..."
-                } else uiProc.name,
+                text =
+                    if (uiProc.name.length > textLimit) {
+                        uiProc.name.take(textLimit) + "..."
+                    } else uiProc.name,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         },
         description = {
-            //Text(uiProc.proc.cmdLine.removePrefix("/system/bin/").take(textLimit))
+            // Text(uiProc.proc.cmdLine.removePrefix("/system/bin/").take(textLimit))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -286,9 +292,7 @@ fun ProcessItem(
             ) {
 
                 // RAM Section
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(id = R.drawable.memory_alt_24px),
                         contentDescription = null,
@@ -306,9 +310,7 @@ fun ProcessItem(
                 Spacer(modifier = Modifier.width(6.dp))
 
                 // CPU Section
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(id = R.drawable.cpu_24px),
                         contentDescription = null,
@@ -318,14 +320,14 @@ fun ProcessItem(
                     Spacer(modifier = Modifier.width(2.dp))
 
                     Text(
-                        text = "${
-                            String.format(Locale.ENGLISH, "%.1f", uiProc.proc.cpuUsage)
-                        }%",
+                        text =
+                            "${
+                                String.format(Locale.ENGLISH, "%.1f", uiProc.proc.cpuUsage)
+                            }%",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
-
         },
         applyPaddings = false,
         startWidget = {
@@ -338,48 +340,52 @@ fun ProcessItem(
                         .size(24.dp),
                 )
             } else {
-                val fallbackId = when {
-                    uiProc.proc.cmdLine.startsWith("/vendor") || uiProc.proc.cmdLine.isEmpty() ->
-                        R.drawable.cpu_24px
+                val fallbackId =
+                    when {
+                        uiProc.proc.cmdLine.startsWith("/vendor") ||
+                                uiProc.proc.cmdLine.isEmpty() -> R.drawable.cpu_24px
 
-                    uiProc.proc.cmdLine.startsWith("/data/local/tmp") || uiProc.proc.uid == 2000 ->
-                        R.drawable.usb_24px
+                        uiProc.proc.cmdLine.startsWith("/data/local/tmp") ||
+                                uiProc.proc.uid == 2000 -> R.drawable.usb_24px
 
-                    else ->
-                        R.drawable.ic_android_black_24dp
-                }
+                        else -> R.drawable.ic_android_black_24dp
+                    }
 
                 Image(
                     painter = painterResource(id = fallbackId),
                     contentDescription = null,
-                    modifier = Modifier
-                        .padding(start = 19.dp)
-                        .size(24.dp)
-                        .alpha(if (!uiProc.killed.value) 1f else 0.3f),
+                    modifier =
+                        Modifier
+                            .padding(start = 19.dp)
+                            .size(24.dp)
+                            .alpha(if (!uiProc.killed.value) 1f else 0.3f),
                 )
             }
         },
         endWidget = {
             if (uiProc.isUserApp) {
                 if (uiProc.killing.value) {
-                    CircularProgressIndicator(modifier = Modifier
-                        .padding(end = 22.dp)
-                        .size(16.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(end = 22.dp)
+                            .size(16.dp),
+                        strokeWidth = 2.dp
+                    )
                 } else {
                     IconButton(
                         modifier = Modifier.padding(end = 7.dp),
                         enabled = !uiProc.killed.value,
                         onClick = {
-//                            viewModel.viewModelScope.launch {
-//                                uiProc.killing.value = true
-//                                uiProc.killed.value = killProc(uiProc.proc)
-//                                delay(300)
-//                                uiProc.killing.value = false
-//                            }
-
-
-                            showKillDialog = uiProc
-                        }) {
+                            //                            viewModel.viewModelScope.launch {
+                            //                                uiProc.killing.value = true
+                            //                                uiProc.killed.value =
+                            // killProc(uiProc.proc)
+                            //                                delay(300)
+                            //                                uiProc.killing.value = false
+                            //                            }
+                            onKillClicked(uiProc)
+                        }
+                    ) {
                         if (uiProc.killed.value) {
                             Icon(imageVector = Icons.Outlined.Check, null)
                         } else {
@@ -387,89 +393,7 @@ fun ProcessItem(
                         }
                     }
                 }
-
             }
-
         }
-
     )
-
-    if (showKillDialog != null) {
-        if (Settings.confirmkill){
-            XedDialog(
-                onDismissRequest = { showKillDialog = null }
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-
-                    Text(
-                        text = stringResource(R.string.terminate),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    Spacer(modifier = Modifier.padding(vertical = 8.dp))
-
-                    showKillDialog?.name?.let {
-                        Text(
-                            text = stringResource(
-                                R.string.terminate_process_prompt,
-                                it
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.padding(vertical = 16.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.End,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-
-                        TextButton(onClick = {
-                            showKillDialog = null
-                        }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        TextButton(onClick = {
-
-
-                            val dialog = showKillDialog
-
-                            viewModel.viewModelScope.launch {
-                                dialog?.killing?.value = true
-                                dialog?.killed?.value = killProc(dialog?.proc!!)
-                                delay(300)
-                                dialog?.killing?.value = false
-                            }
-
-                            showKillDialog = null
-
-
-                        }) {
-                            Text(
-                                text = stringResource(R.string.kill),
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-                }
-            }
-        }else{
-            LaunchedEffect(Unit) {
-                val dialog = showKillDialog
-                viewModel.viewModelScope.launch {
-                    dialog?.killing?.value = true
-                    dialog?.killed?.value = killProc(dialog?.proc!!)
-                    delay(300)
-                    dialog?.killing?.value = false
-                }
-
-                showKillDialog = null
-            }
-        }
-
-    }
-
 }

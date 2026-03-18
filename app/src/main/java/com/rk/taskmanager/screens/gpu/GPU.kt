@@ -1,16 +1,11 @@
 package com.rk.taskmanager.screens.gpu
 
 import android.graphics.Typeface
-import android.opengl.EGL14
-import android.opengl.EGLConfig
-import android.opengl.GLES20
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -24,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -42,7 +36,6 @@ import com.patrykandpatrick.vico.core.common.shader.ShaderProvider
 import com.rk.components.SettingsToggle
 import com.rk.components.rememberMarker
 import com.rk.taskmanager.MainActivity
-import com.rk.taskmanager.ProcessViewModel
 import com.rk.taskmanager.R
 import com.rk.taskmanager.SettingsRoutes
 import com.rk.taskmanager.screens.cpu.InfoCard
@@ -52,13 +45,13 @@ import com.rk.taskmanager.screens.cpu.MarkerValueFormatter
 import com.rk.taskmanager.screens.cpu.RangeProvider
 import com.rk.taskmanager.screens.cpu.StartAxisValueFormatter
 import com.rk.taskmanager.screens.cpu.xValues
-import com.rk.taskmanager.screens.selectedscreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-private val gpuYValues = ArrayDeque<Int>(MAX_GRAPH_POINTS).apply { repeat(MAX_GRAPH_POINTS) { add(0) } }
+private val gpuYValues =
+    ArrayDeque<Int>(MAX_GRAPH_POINTS).apply { repeat(MAX_GRAPH_POINTS) { add(0) } }
 
 private val GpuModelProducer = CartesianChartModelProducer()
 
@@ -67,16 +60,16 @@ private val mutex = Mutex()
 
 suspend fun updateGpuGraph(usage: Int) {
     mutex.withLock {
-        withContext(Dispatchers.Main){
+        withContext(Dispatchers.Main) {
             gpuUsage = usage
         }
         gpuYValues.removeFirst()
         gpuYValues.addLast(gpuUsage)
 
-        if (selectedscreen.intValue == 0 && MainActivity.instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
+        if (MainActivity.instance?.navControllerRef?.get()?.currentDestination?.route == SettingsRoutes.Home.route) {
             GpuModelProducer.runTransaction {
                 lineSeries {
-                    series(x = xValues, y = gpuYValues)
+                    series(x = xValues, y = gpuYValues.toList())
                 }
             }
         }
@@ -84,11 +77,24 @@ suspend fun updateGpuGraph(usage: Int) {
 
 }
 
-
+@Composable
+private fun GpuUsageToggle() {
+    SettingsToggle(
+        description = "GPU - ${
+            if (gpuUsage < 0) {
+                stringResource(R.string.no_data)
+            } else {
+                "$gpuUsage%"
+            }
+        }",
+        showSwitch = false,
+        default = false
+    )
+}
 
 
 @Composable
-fun GPU(modifier: Modifier = Modifier,viewModel: GpuViewModel) {
+fun GPU(modifier: Modifier = Modifier, viewModel: GpuViewModel) {
     val lineColor = MaterialTheme.colorScheme.primary
     val gpuInfo by viewModel.gpuInfo.collectAsState()
 
@@ -96,7 +102,7 @@ fun GPU(modifier: Modifier = Modifier,viewModel: GpuViewModel) {
         mutex.withLock {
             GpuModelProducer.runTransaction {
                 lineSeries {
-                    series(x = xValues, y = gpuYValues)
+                    series(x = xValues, y = gpuYValues.toList())
                 }
             }
         }
@@ -145,17 +151,7 @@ fun GPU(modifier: Modifier = Modifier,viewModel: GpuViewModel) {
         )
 
 
-        SettingsToggle(
-            description = "GPU - ${
-                if (gpuUsage < 0) {
-                    stringResource(R.string.no_data)
-                } else {
-                    "$gpuUsage%"
-                }
-            }",
-            showSwitch = false,
-            default = false
-        )
+        GpuUsageToggle()
 
         Spacer(modifier = Modifier.padding(vertical = 4.dp))
 
@@ -191,9 +187,9 @@ fun GPU(modifier: Modifier = Modifier,viewModel: GpuViewModel) {
 
                     InfoItem(
                         label = "Vulkan",
-                        value = if (gpuInfo?.vulkanSupported == true){
+                        value = if (gpuInfo?.vulkanSupported == true) {
                             stringResource(R.string.supported)
-                        }else{
+                        } else {
                             stringResource(R.string.not_supported)
                         },
                         highlighted = false

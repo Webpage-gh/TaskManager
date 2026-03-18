@@ -37,6 +37,8 @@ data class ProcessUiModel(
     val isSystemApp: Boolean,
     val isUserApp: Boolean,
     val isApp: Boolean,
+    val memoryDisplay: String,
+    val cpuDisplay: String,
     val killing: MutableState<Boolean> = mutableStateOf(false),
     val killed: MutableState<Boolean> = mutableStateOf(false)
 )
@@ -49,10 +51,12 @@ class ProcessViewModel : ViewModel() {
     private val _showSystemApps = MutableStateFlow(Settings.showSystemApps)
     private val _showLinuxProcess = MutableStateFlow(Settings.showLinuxProcess)
 
-
-    enum class Sortby(val id: Int){
-        Ram(0),Cpu(1),A_z(2)
+    enum class Sortby(val id: Int) {
+        Ram(0),
+        Cpu(1),
+        A_z(2)
     }
+
     private val _sortBy = MutableStateFlow(Settings.sortby)
 
     val showUserApps = _showUserApps.asStateFlow()
@@ -65,56 +69,63 @@ class ProcessViewModel : ViewModel() {
     private val _procCount = MutableStateFlow(0)
     val procCount = _procCount.asStateFlow()
 
-    val filteredProcesses: StateFlow<List<ProcessUiModel>> = combine(
-        _uiProcesses,
-        _showUserApps,
-        _showSystemApps,
-        _showLinuxProcess,
-        _sortBy
-    ) { processes, showUser, showSystem, showLinux, sortBy ->
+    val filteredProcesses: StateFlow<List<ProcessUiModel>> =
+        combine(
+            _uiProcesses,
+            _showUserApps,
+            _showSystemApps,
+            _showLinuxProcess,
+            _sortBy
+        ) { processes,
+            showUser,
+            showSystem,
+            showLinux,
+            sortBy ->
+            val filtered =
+                processes.filter { process ->
+                    when {
+                        process.isApp && process.isUserApp && showUser -> true
+                        process.isApp && process.isSystemApp && showSystem -> true
+                        !process.isApp && showLinux -> true
+                        else -> false
+                    }
+                }
 
-        val filtered = processes.filter { process ->
-            when {
-                process.isApp && process.isUserApp && showUser -> true
-                process.isApp && process.isSystemApp && showSystem -> true
-                !process.isApp && showLinux -> true
-                else -> false
+            when (sortBy) {
+                Sortby.Ram.id -> filtered.sortedByDescending { it.proc.memoryUsageKb }
+                Sortby.Cpu.id -> filtered.sortedByDescending { it.proc.cpuUsage }
+                Sortby.A_z.id -> filtered.sortedBy { it.name.lowercase() }
+                else -> filtered
             }
         }
-
-        when (sortBy) {
-            Sortby.Ram.id -> filtered.sortedByDescending { it.proc.memoryUsageKb }
-            Sortby.Cpu.id -> filtered.sortedByDescending { it.proc.cpuUsage }
-            Sortby.A_z.id -> filtered.sortedBy { it.name.lowercase() }
-            else -> filtered
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
 
     // Use StateFlow for search query with debouncing
     private val _searchQuery = MutableStateFlow("")
 
-    val searchResults: StateFlow<List<ProcessUiModel>> = combine(
-        _searchQuery.debounce(150), // Debounce by 150ms
-        filteredProcesses
-    ) { query, processes ->
-        if (query.isEmpty()) {
-            processes
-        } else {
-            processes.filter {
-                it.name.contains(query, ignoreCase = true) ||
-                        it.proc.cmdLine.contains(query, ignoreCase = true)
+    val searchResults: StateFlow<List<ProcessUiModel>> =
+        combine(
+            _searchQuery.debounce(150), // Debounce by 150ms
+            filteredProcesses
+        ) { query, processes ->
+            if (query.isEmpty()) {
+                processes
+            } else {
+                processes.filter {
+                    it.name.contains(query, ignoreCase = true) ||
+                            it.proc.cmdLine.contains(query, ignoreCase = true)
+                }
             }
         }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
 
     fun search(query: String) {
         _searchQuery.value = query
@@ -128,7 +139,7 @@ class ProcessViewModel : ViewModel() {
         _showSystemApps.value = value
     }
 
-    fun setSortBy(sortby: Sortby){
+    fun setSortBy(sortby: Sortby) {
         Settings.sortby = sortby.id
         _sortBy.value = sortby.id
     }
@@ -173,8 +184,8 @@ class ProcessViewModel : ViewModel() {
                             val obj = jsonArray.getJSONObject(i)
 
                             val cmdLine = obj.optString("cmdLine", "")
-                            if (cmdLine == TaskManager.requireContext().packageName){
-                                //do not show taskmanager itself
+                            if (cmdLine == TaskManager.requireContext().packageName) {
+                                // do not show taskmanager itself
                                 continue
                             }
 
@@ -190,10 +201,15 @@ class ProcessViewModel : ViewModel() {
                                     memoryUsageKb = obj.optLong("memoryUsageKb", 0L),
                                     cmdLine = obj.optString("cmdLine", ""),
                                     state = obj.optString("state", ""),
-                                    threads = obj.optInt("threads", 0).also { totalThreads += it },
+                                    threads =
+                                        obj.optInt("threads", 0).also {
+                                            totalThreads += it
+                                        },
                                     startTime = obj.optLong("startTime", 0L),
-                                    elapsedTime = obj.optDouble("elapsedTime", 0.0).toFloat(),
-                                    residentSetSizeKb = obj.optLong("residentSetSizeKb", 0L),
+                                    elapsedTime =
+                                        obj.optDouble("elapsedTime", 0.0).toFloat(),
+                                    residentSetSizeKb =
+                                        obj.optLong("residentSetSizeKb", 0L),
                                     virtualMemoryKb = obj.optLong("virtualMemoryKb", 0L),
                                     cgroup = obj.optString("cgroup", ""),
                                     executablePath = obj.optString("executablePath", "")
@@ -203,16 +219,41 @@ class ProcessViewModel : ViewModel() {
 
                         _threadCount.value = totalThreads
 
-                        val uiList = newProcesses.map { proc ->
-                            async(Dispatchers.IO) {
-                                val context = TaskManager.requireContext()
-                                val name = getApkNameFromPackage(context, proc.cmdLine) ?: proc.name
-                                val icon = getAppIconBitmap(context, proc.cmdLine)?.asImageBitmap()
-                                val system = isSystemApp(context, proc.cmdLine)
-                                val isApp = isAppInstalled(context, proc.cmdLine)
-                                ProcessUiModel(proc, name, icon, system, isApp && !system, isApp = isApp)
-                            }
-                        }.awaitAll()
+                        val uiList =
+                            newProcesses
+                                .map { proc ->
+                                    async(Dispatchers.IO) {
+                                        val context = TaskManager.requireContext()
+                                        val name =
+                                            getApkNameFromPackage(context, proc.cmdLine)
+                                                ?: proc.name
+                                        val icon =
+                                            getAppIconBitmap(context, proc.cmdLine)
+                                                ?.asImageBitmap()
+                                        val system = isSystemApp(context, proc.cmdLine)
+                                        val isApp = isAppInstalled(context, proc.cmdLine)
+                                        val mem = "${proc.memoryUsageKb / 1024} MB"
+                                        val cpu =
+                                            "${
+                                                String.format(
+                                                    java.util.Locale.ENGLISH,
+                                                    "%.1f",
+                                                    proc.cpuUsage
+                                                )
+                                            }%"
+                                        ProcessUiModel(
+                                            proc,
+                                            name,
+                                            icon,
+                                            system,
+                                            isApp && !system,
+                                            isApp = isApp,
+                                            mem,
+                                            cpu
+                                        )
+                                    }
+                                }
+                                .awaitAll()
 
                         _procCount.value = newProcesses.size
 
@@ -228,21 +269,15 @@ class ProcessViewModel : ViewModel() {
             }
         }
 
-        viewModelScope.launch {
-            refreshProcessesAuto()
-        }
+        viewModelScope.launch { refreshProcessesAuto() }
     }
 
     fun refreshProcessesManual() {
         isLoading.value = true
-        viewModelScope.launch {
-            send_daemon_messages.emit("LIST_PROCESS")
-        }
+        viewModelScope.launch { send_daemon_messages.emit("LIST_PROCESS") }
     }
 
     fun refreshProcessesAuto() {
-        viewModelScope.launch {
-            send_daemon_messages.emit("LIST_PROCESS")
-        }
+        viewModelScope.launch { send_daemon_messages.emit("LIST_PROCESS") }
     }
 }

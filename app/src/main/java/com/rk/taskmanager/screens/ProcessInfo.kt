@@ -261,7 +261,8 @@ fun ProcessInfo(
         Box(modifier = Modifier.padding(innerPadding), contentAlignment = Alignment.Center) {
             Column(modifier.verticalScroll(rememberScrollState())) {
                 PreferenceGroup {
-                    val enabled = proc!!.proc.pid > 1 && proc!!.killed.value.not() && proc!!.proc.cmdLine != "zygote" && proc!!.proc.cmdLine != "zygote64"
+                    val enabled =
+                        proc!!.proc.pid > 1 && proc!!.killed.value.not() && proc!!.proc.cmdLine != "zygote" && proc!!.proc.cmdLine != "zygote64"
                     val interactionSource = remember { MutableInteractionSource() }
                     PreferenceTemplate(
                         modifier = modifier
@@ -332,7 +333,7 @@ fun ProcessInfo(
                                         imageVector = Icons.Outlined.Check,
                                         contentDescription = null
                                     )
-                                }else{
+                                } else {
                                     Icon(
                                         modifier = Modifier
                                             .padding(start = 16.dp)
@@ -504,15 +505,19 @@ fun ProcessInfo(
                                         it.proc.pid == proc!!.proc.parentPid
                                     }
 
-                                    withContext(Dispatchers.Main){
-                                        if (parent != null){
+                                    withContext(Dispatchers.Main) {
+                                        if (parent != null) {
                                             navController.navigate(
                                                 SettingsRoutes.ProcessInfo.createRoute(
                                                     parent
                                                 )
                                             )
-                                        }else{
-                                            Toast.makeText(TaskManager.requireContext(), "Unable to find parent by its pid", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(
+                                                TaskManager.requireContext(),
+                                                "Unable to find parent by its pid",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                     }
 
@@ -523,7 +528,7 @@ fun ProcessInfo(
                     }
 
                     val context = LocalContext.current
-                    if (proc.isApp){
+                    if (proc.isApp) {
                         SettingsToggle(
                             label = stringResource(R.string.app_info),
                             description = stringResource(R.string.application_info_settings),
@@ -538,10 +543,11 @@ fun ProcessInfo(
                             },
                             sideEffect = {
                                 val packageName = proc!!.proc.cmdLine
-                                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                    data = "package:$packageName".toUri()
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
+                                val intent =
+                                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = "package:$packageName".toUri()
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
                                 context.startActivity(intent)
                             })
                     }
@@ -551,7 +557,10 @@ fun ProcessInfo(
 
 
                 if (proc?.isApp == true) {
-                    val descriptionState by produceState<DescriptionState>(initialValue = DescriptionState.Loading, key1 = proc?.proc?.cmdLine) {
+                    val descriptionState by produceState<DescriptionState>(
+                        initialValue = DescriptionState.Loading,
+                        key1 = proc?.proc?.cmdLine
+                    ) {
                         val db = TaskManager.getDatabase(TaskManager.requireContext())
                         val desc = withContext(Dispatchers.IO) {
                             db.appDao().getDescription(proc!!.proc.cmdLine)
@@ -566,11 +575,26 @@ fun ProcessInfo(
 
                     PreferenceGroup(heading = stringResource(R.string.debloater_info)) {
                         when (descriptionState) {
-                            is DescriptionState.Loading -> TextCard(text = stringResource(strings.loading), description = null, selection = true, copyDesOnLong = false)
-                            is DescriptionState.Success -> TextCard(text = null, description = (descriptionState as DescriptionState.Success).text, selection = true,copyDesOnLong = false)
-                            is DescriptionState.Empty -> TextCard(text = null, description = stringResource(
-                                R.string.no_info_available_for_this_process
-                            ), selection = true,copyDesOnLong = false)
+                            is DescriptionState.Loading -> TextCard(
+                                text = stringResource(strings.loading),
+                                description = null,
+                                selection = true,
+                                copyDesOnLong = false
+                            )
+
+                            is DescriptionState.Success -> TextCard(
+                                text = null,
+                                description = (descriptionState as DescriptionState.Success).text,
+                                selection = true,
+                                copyDesOnLong = false
+                            )
+
+                            is DescriptionState.Empty -> TextCard(
+                                text = null,
+                                description = "No info available for this process",
+                                selection = true,
+                                copyDesOnLong = false
+                            )
                         }
                     }
                 }
@@ -585,7 +609,7 @@ fun ProcessInfo(
     }
 
     if (showKillDialog != null) {
-        if (com.rk.taskmanager.settings.Settings.confirmkill){
+        if (com.rk.taskmanager.settings.Settings.confirmkill) {
             XedDialog(
                 onDismissRequest = { showKillDialog = null }
             ) {
@@ -646,7 +670,7 @@ fun ProcessInfo(
                     }
                 }
             }
-        }else{
+        } else {
             LaunchedEffect(Unit) {
                 val dialog = showKillDialog
                 viewModel.viewModelScope.launch {

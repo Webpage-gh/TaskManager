@@ -10,14 +10,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.with
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.MoreVert
@@ -30,10 +29,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,14 +43,14 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.rk.taskmanager.ProcessViewModel
 import com.rk.taskmanager.R
 import com.rk.taskmanager.screens.Filter
 import com.rk.taskmanager.screens.ProcessItem
 import com.rk.taskmanager.screens.Sort
-import com.rk.taskmanager.screens.showFilter
-import com.rk.taskmanager.screens.showSort
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -56,6 +58,8 @@ fun ProcessSearchBar(
     modifier: Modifier = Modifier,
     viewModel: ProcessViewModel,
     navController: NavController,
+    onShowFilter: () -> Unit,
+    onShowSort: () -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val animatedPadding by animateDpAsState(
@@ -92,7 +96,6 @@ fun ProcessSearchBar(
                         var showMoreMenu by remember { mutableStateOf(false) }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = {
-                                //showFilter.value = true
                                 showMoreMenu = true
                             }) {
                                 Icon(imageVector = Icons.Outlined.MoreVert, null)
@@ -106,7 +109,7 @@ fun ProcessSearchBar(
                                 Text(stringResource(R.string.filters))
                             }, onClick = {
                                 showMoreMenu = false
-                                showFilter.value = true
+                                onShowFilter()
                             }, leadingIcon = {
                                 Icon(imageVector = Filter, null)
                             })
@@ -115,11 +118,10 @@ fun ProcessSearchBar(
                                 Text(stringResource(R.string.sort))
                             }, onClick = {
                                 showMoreMenu = false
-                                showSort.value = true
+                                onShowSort()
                             }, leadingIcon = {
                                 Icon(imageVector = Sort, null)
                             })
-
 
 
                         }
@@ -128,7 +130,7 @@ fun ProcessSearchBar(
                         AnimatedContent(
                             targetState = expanded,
                             transitionSpec = {
-                                fadeIn(animationSpec = tween(300)) + scaleIn(tween(300)) + rotateIn() with
+                                fadeIn(animationSpec = tween(300)) + scaleIn(tween(300)) + rotateIn() togetherWith
                                         fadeOut(tween(300)) + scaleOut(tween(300)) + rotateOut()
                             }
                         ) { targetExpanded ->
@@ -164,7 +166,17 @@ fun ProcessSearchBar(
                         modifier = Modifier,
                         uiProc = proc,
                         navController = navController,
-                        viewModel
+                        onKillClicked = { target ->
+                            // In search bar we don't have direct access to the parent's dialog state
+                            // So we trigger the viewmodel directly for simplicity in the search overlay
+                            viewModel.viewModelScope.launch {
+                                target.killing.value = true
+                                target.killed.value =
+                                    com.rk.taskmanager.screens.killProc(target.proc)
+                                kotlinx.coroutines.delay(300)
+                                target.killing.value = false
+                            }
+                        }
                     )
                 }
             }
@@ -174,5 +186,6 @@ fun ProcessSearchBar(
 
 @ExperimentalAnimationApi
 fun rotateIn() = EnterTransition.None
+
 @ExperimentalAnimationApi
 fun rotateOut() = ExitTransition.None

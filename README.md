@@ -1,6 +1,8 @@
 # TaskManager
 **Task Manager** is tool for android inspired from gnome system monitor
 
+**English | [简体中文](README_CN.md)**
+
 [<img src="https://shields.rbtlog.dev/simple/com.rk.taskmanager" alt="RB shield">](https://shields.rbtlog.dev/com.rk.taskmanager)
 
 > [!IMPORTANT]
